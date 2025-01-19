@@ -1,0 +1,11 @@
+.{
+    .name = .pennant,
+    .version = "0.1.0",
+    .fingerprint = 0x31c58abb303c0233,
+    .dependencies = .{},
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
