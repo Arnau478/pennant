@@ -164,7 +164,8 @@ pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: any
                             find_flag: {
                                 inline for (std.meta.fields(Options)) |field| {
                                     if (std.mem.eql(u8, name, field.name)) {
-                                        const T = @TypeOf(@field(options, field.name));
+                                        const RawT = @TypeOf(@field(options, field.name));
+                                        const T = if (@typeInfo(RawT) == .optional) std.meta.Child(RawT) else RawT;
                                         switch (T) {
                                             bool => {
                                                 @field(options, field.name) = true;
@@ -182,7 +183,9 @@ pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: any
                                         if (@hasField(@TypeOf(Options.opposites), field.name)) {
                                             const opposite = @field(Options.opposites, field.name);
                                             if (std.mem.eql(u8, name, opposite)) {
-                                                if (@TypeOf(@field(options, field.name)) != bool) {
+                                                const RawT = @TypeOf(@field(options, field.name));
+                                                const T = if (@typeInfo(RawT) == .optional) std.meta.Child(RawT) else RawT;
+                                                if (T != bool) {
                                                     @compileError("Option " ++ field.name ++ " has an opposite but is not bool");
                                                 }
 
@@ -214,7 +217,9 @@ pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: any
                                         @compileError("Shorthand " ++ field.name ++ " assigned to non-existent property " ++ @field(Options.shorthands, field.name));
                                     }
 
-                                    if (@TypeOf(@field(options, @field(Options.shorthands, field.name))) != bool) {
+                                    const RawT = @TypeOf(@field(options, @field(Options.shorthands, field.name)));
+                                    const T = if (@typeInfo(RawT) == .optional) std.meta.Child(RawT) else RawT;
+                                    if (T != bool) {
                                         @compileError("Property " ++ @field(Options.shorthands, field.name) ++ " with shorthand " ++ field.name ++ " is not bool");
                                     }
 
