@@ -10,11 +10,11 @@ pub fn parseForProcess(comptime Options: type, allocator: std.mem.Allocator) !Pa
 
 pub fn ParseResult(comptime Options: type) type {
     return union(enum) {
-        valid: struct {
+        pub const Valid = struct {
             options: Options,
             positionals: []const []const u8,
-        },
-        err: union(enum) {
+        };
+        pub const Error = union(enum) {
             /// An unknown flag
             unknown_flag: []const u8,
             /// A shorthand that's not valid (e.g. "-aaa")
@@ -34,7 +34,7 @@ pub fn ParseResult(comptime Options: type) type {
             /// A flag was given an invalid value
             invalid_value: struct { key: []const u8, value: []const u8 },
 
-            pub fn format(err: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+            pub fn format(err: Error, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
                 switch (err) {
                     .unknown_flag => |flag| try writer.print("Unknown flag: \"{s}\"", .{flag}),
                     .invalid_shorthand => |shorthand| try writer.print("Invalid shorthand: \"{s}\"", .{shorthand}),
@@ -47,7 +47,10 @@ pub fn ParseResult(comptime Options: type) type {
                     .invalid_value => |flag| try writer.print("Invalid value \"{s}\" for flag \"{s}\"", .{ flag.value, flag.key }),
                 }
             }
-        },
+        };
+
+        valid: Valid,
+        err: Error,
 
         pub fn deinit(result: @This(), allocator: std.mem.Allocator) void {
             switch (result) {
