@@ -22,6 +22,6 @@ Examples are available in the `examples` folder. They can also be run via `zig b
 - [x] Opposite flags
 - [x] Shorthands
 - [x] Enum flags
-- [ ] Help message
+- [x] Help message
 - [ ] Error messages
 - [ ] Fuzzing

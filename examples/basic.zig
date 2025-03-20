@@ -13,6 +13,12 @@ pub const Options = struct {
     pub const opposites = .{
         .uppercase = "lowercase",
     };
+
+    pub const descriptions = .{
+        .help = "Show this help message",
+        .letter = "Choose a letter",
+        .uppercase = "Use lowercase or uppercase",
+    };
 };
 
 pub fn main() !void {
@@ -25,14 +31,20 @@ pub fn main() !void {
 
     switch (res) {
         .valid => |args| {
-            if (args.options.uppercase) {
-                std.log.info("HELLO", .{});
+            if (args.options.help) {
+                pennant.printHelp(Options, .{ .text = 
+                \\An example command
+                });
             } else {
-                std.log.info("hello", .{});
-            }
+                if (args.options.uppercase) {
+                    std.log.info("HELLO", .{});
+                } else {
+                    std.log.info("hello", .{});
+                }
 
-            if (args.options.letter) |letter| {
-                std.log.info("Letter: {s}", .{@tagName(letter)});
+                if (args.options.letter) |letter| {
+                    std.log.info("Letter: {s}", .{@tagName(letter)});
+                }
             }
         },
         .err => |err| {

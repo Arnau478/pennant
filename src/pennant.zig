@@ -67,8 +67,6 @@ pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: any
                 if (idx2 <= idx1) continue;
 
                 if (comptime std.mem.eql(u8, @field(Options.opposites, f1.name), @field(Options.opposites, f2.name))) {
-                    @compileLog(@field(Options.opposites, f1.name));
-                    @compileLog(@field(Options.opposites, f2.name));
                     @compileError("Options " ++ f1.name ++ " and " ++ f2.name ++ " have the same opposite");
                 }
             }
@@ -235,6 +233,82 @@ pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: any
             .positionals = try positionals.toOwnedSlice(),
         },
     };
+}
+
+pub const PrintHelpOptions = struct {
+    // Custom text to print
+    text: ?[]const u8 = null,
+};
+
+pub fn printHelp(comptime Options: type, options: PrintHelpOptions) void {
+    if (options.text) |text| {
+        std.debug.print("{s}\n\n", .{text});
+    }
+
+    if (@hasDecl(Options, "descriptions")) {
+        inline for (std.meta.fields(@TypeOf(Options.opposites))) |field| {
+            if (!@hasField(Options, field.name)) {
+                @compileError("Cannot define description for unknown flag \"" ++ field.name ++ "\"");
+            }
+        }
+    }
+
+    comptime var flags: [std.meta.fields(Options).len][]const u8 = undefined;
+
+    inline for (std.meta.fields(Options), 0..) |flag, i| {
+        comptime var f: []const u8 = "";
+
+        if (@hasDecl(Options, "shorthands")) {
+            inline for (std.meta.fields(@TypeOf(Options.shorthands))) |field| {
+                if (comptime std.mem.eql(u8, @field(Options.shorthands, field.name), flag.name)) {
+                    f = f ++ "-" ++ field.name ++ ", ";
+                }
+            }
+        }
+
+        f = f ++ "--" ++ flag.name;
+
+        if (@hasDecl(Options, "opposites")) {
+            if (@hasField(@TypeOf(Options.opposites), flag.name)) {
+                f = f ++ ", --" ++ @field(Options.opposites, flag.name);
+            }
+        }
+
+        flags[i] = f;
+    }
+
+    comptime var max_flag_len = 0;
+    inline for (flags) |flag| {
+        max_flag_len = @max(max_flag_len, flag.len);
+    }
+
+    std.debug.print("Flags:\n", .{});
+    inline for (flags, 0..) |flag, i| {
+        const base_flag = std.meta.fields(Options)[i].name;
+
+        std.debug.print("  " ++ flag, .{});
+        for (0..max_flag_len - flag.len + 2) |_| {
+            std.debug.print(" ", .{});
+        }
+
+        if (@hasDecl(Options, "descriptions") and @hasField(@TypeOf(Options.descriptions), base_flag)) {
+            std.debug.print(@field(Options.descriptions, base_flag), .{});
+        }
+
+        std.debug.print("\n", .{});
+
+        const RawT = @TypeOf(@field(Options{}, base_flag));
+        const T = if (@typeInfo(RawT) == .optional) std.meta.Child(RawT) else RawT;
+        if (@typeInfo(T) == .@"enum") {
+            inline for (std.meta.fields(T)) |field| {
+                for (0..max_flag_len + 6) |_| {
+                    std.debug.print(" ", .{});
+                }
+
+                std.debug.print("- " ++ field.name ++ "\n", .{});
+            }
+        }
+    }
 }
 
 fn testParse(Options: type, args: []const []const u8, expected: ParseResult(Options)) !void {
