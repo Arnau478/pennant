@@ -202,6 +202,7 @@ pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: any
                                     }
 
                                     @field(options, @field(Options.shorthands, field.name)) = true;
+                                    if (try used_flags.fetchPut(@field(Options.shorthands, field.name), {})) |_| return .{ .err = .{ .duplicate_flag = @field(Options.shorthands, field.name) } };
                                 }
                             }
                         }
