@@ -33,6 +33,20 @@ pub fn ParseResult(comptime Options: type) type {
             unexpected_value: []const u8,
             /// A flag was given an invalid value
             invalid_value: struct { key: []const u8, value: []const u8 },
+
+            pub fn format(err: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+                switch (err) {
+                    .unknown_flag => |flag| try writer.print("Unknown flag: \"{s}\"", .{flag}),
+                    .invalid_shorthand => |shorthand| try writer.print("Invalid shorthand: \"{s}\"", .{shorthand}),
+                    .unknown_shorthand => |shorthand| try writer.print("Unknown shorthand: \"{s}\"", .{shorthand}),
+                    .contradictory_flags => |flag| try writer.print("Contradiction found for flag \"{s}\"", .{flag}),
+                    .duplicate_flag => |flag| try writer.print("Duplicate flag: \"{s}\"", .{flag}),
+                    .multiple_equal_signs => |arg| try writer.print("Multiple equal signs in \"{s}\"", .{arg}),
+                    .flag_without_value => |flag| try writer.print("Flag \"{s}\" was given no value", .{flag}),
+                    .unexpected_value => |flag| try writer.print("Unexpected value for flag \"{s}\"", .{flag}),
+                    .invalid_value => |flag| try writer.print("Invalid value \"{s}\" for flag \"{s}\"", .{ flag.value, flag.key }),
+                }
+            }
         },
 
         pub fn deinit(result: @This(), allocator: std.mem.Allocator) void {

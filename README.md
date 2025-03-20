@@ -16,12 +16,3 @@ Argument parser for Zig.
 ## Examples
 
 Examples are available in the `examples` folder. They can also be run via `zig build example-[name]`.
-
-## Roadmap
-- [x] Basic boolean flags
-- [x] Opposite flags
-- [x] Shorthands
-- [x] Enum flags
-- [x] Help message
-- [ ] Error messages
-- [ ] Fuzzing
