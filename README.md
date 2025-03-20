@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="logo.svg" width="50%" />
+</div>
+
 # Pennant
 
 Argument parser for Zig.
