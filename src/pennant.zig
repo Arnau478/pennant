@@ -206,27 +206,31 @@ pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: any
                         return .{ .err = .{ .invalid_shorthand = arg } };
                     } else {
                         const shorthand = arg[1];
-                        if (@hasDecl(Options, "shorthands")) {
-                            inline for (std.meta.fields(@TypeOf(Options.shorthands))) |field| {
-                                if (field.name.len != 1) {
-                                    @compileError("Shorthand " ++ field.name ++ " is not a single character long");
-                                }
-
-                                if (shorthand == field.name[0]) {
-                                    if (!@hasField(Options, @field(Options.shorthands, field.name))) {
-                                        @compileError("Shorthand " ++ field.name ++ " assigned to non-existent property " ++ @field(Options.shorthands, field.name));
+                        find_shorthand: {
+                            if (@hasDecl(Options, "shorthands")) {
+                                inline for (std.meta.fields(@TypeOf(Options.shorthands))) |field| {
+                                    if (field.name.len != 1) {
+                                        @compileError("Shorthand " ++ field.name ++ " is not a single character long");
                                     }
 
-                                    const RawT = @TypeOf(@field(options, @field(Options.shorthands, field.name)));
-                                    const T = if (@typeInfo(RawT) == .optional) std.meta.Child(RawT) else RawT;
-                                    if (T != bool) {
-                                        @compileError("Property " ++ @field(Options.shorthands, field.name) ++ " with shorthand " ++ field.name ++ " is not bool");
-                                    }
+                                    if (shorthand == field.name[0]) {
+                                        if (!@hasField(Options, @field(Options.shorthands, field.name))) {
+                                            @compileError("Shorthand " ++ field.name ++ " assigned to non-existent property " ++ @field(Options.shorthands, field.name));
+                                        }
 
-                                    @field(options, @field(Options.shorthands, field.name)) = true;
-                                    if (try used_flags.fetchPut(@field(Options.shorthands, field.name), {})) |_| return .{ .err = .{ .duplicate_flag = @field(Options.shorthands, field.name) } };
+                                        const RawT = @TypeOf(@field(options, @field(Options.shorthands, field.name)));
+                                        const T = if (@typeInfo(RawT) == .optional) std.meta.Child(RawT) else RawT;
+                                        if (T != bool) {
+                                            @compileError("Property " ++ @field(Options.shorthands, field.name) ++ " with shorthand " ++ field.name ++ " is not bool");
+                                        }
+
+                                        @field(options, @field(Options.shorthands, field.name)) = true;
+                                        if (try used_flags.fetchPut(@field(Options.shorthands, field.name), {})) |_| return .{ .err = .{ .duplicate_flag = @field(Options.shorthands, field.name) } };
+                                        break :find_shorthand;
+                                    }
                                 }
                             }
+                            return .{ .err = .{ .unknown_shorthand = arg } };
                         }
                     }
                 }
