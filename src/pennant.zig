@@ -269,7 +269,7 @@ pub fn printHelp(comptime Options: type, options: PrintHelpOptions) void {
     }
 
     if (@hasDecl(Options, "descriptions")) {
-        inline for (std.meta.fields(@TypeOf(Options.opposites))) |field| {
+        inline for (std.meta.fields(@TypeOf(Options.descriptions))) |field| {
             if (!@hasField(Options, field.name)) {
                 @compileError("Cannot define description for unknown flag \"" ++ field.name ++ "\"");
             }
