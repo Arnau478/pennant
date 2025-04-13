@@ -114,6 +114,9 @@ pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: any
                         const T = if (@typeInfo(RawT) == .optional) std.meta.Child(RawT) else RawT;
                         switch (T) {
                             bool => return .{ .err = .{ .unexpected_value = key } },
+                            []const u8 => {
+                                @field(options, field.name) = arg;
+                            },
                             else => switch (@typeInfo(T)) {
                                 .@"enum" => {
                                     find_value: {

@@ -5,6 +5,7 @@ pub const Options = struct {
     help: bool = false,
     letter: ?enum { a, b, c } = null,
     uppercase: bool = false,
+    text: ?[]const u8 = null,
 
     pub const shorthands = .{
         .h = "help",
@@ -33,7 +34,7 @@ pub fn main() !void {
         .valid => |args| {
             if (args.options.help) {
                 pennant.printHelp(Options, .{ .text = 
-                \\An example command
+                    \\An example command
                 });
             } else {
                 if (args.options.uppercase) {
@@ -44,6 +45,10 @@ pub fn main() !void {
 
                 if (args.options.letter) |letter| {
                     std.log.info("Letter: {s}", .{@tagName(letter)});
+                }
+
+                if (args.options.text) |text| {
+                    std.log.info("Text: \"{s}\"", .{text});
                 }
             }
         },
