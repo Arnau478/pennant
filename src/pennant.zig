@@ -131,6 +131,11 @@ pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: any
                                         return .{ .err = .{ .invalid_value = .{ .key = key, .value = arg } } };
                                     }
                                 },
+                                .int => {
+                                    @field(options, field.name) = std.fmt.parseInt(T, arg, 10) catch {
+                                        return .{ .err = .{ .invalid_value = .{ .key = key, .value = arg } } };
+                                    };
+                                },
                                 else => |other| @compileError(@tagName(other) ++ " types not supported"),
                             },
                         }
@@ -372,6 +377,32 @@ test "raw parsing" {
                 .bar = false,
             },
             .positionals = &.{"--bar"},
+        },
+    });
+}
+
+test "number parsing" {
+    try testParse(struct {
+        foo: usize = 3,
+    }, &.{ "name", "--foo", "4" }, .{
+        .valid = .{
+            .options = .{
+                .foo = 4,
+            },
+            .positionals = &.{},
+        },
+    });
+}
+
+test "number overflow" {
+    try testParse(struct {
+        foo: u8 = 0,
+    }, &.{ "name", "--foo", "256" }, .{
+        .err = .{
+            .invalid_value = .{
+                .key = "foo",
+                .value = "256",
+            },
         },
     });
 }
