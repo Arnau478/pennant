@@ -11,9 +11,11 @@ pub fn build(b: *std.Build) void {
     inline for (&.{"basic"}) |example| {
         const exe = b.addExecutable(.{
             .name = example,
-            .root_source_file = b.path(b.fmt("examples/{s}.zig", .{example})),
-            .target = target,
-            .optimize = optimize,
+            .root_module = b.createModule(.{
+                .root_source_file = b.path(b.fmt("examples/{s}.zig", .{example})),
+                .target = target,
+                .optimize = optimize,
+            }),
         });
 
         const tls = b.step(b.fmt("example-{s}", .{example}), b.fmt("Run the \"{s}\" example", .{example}));
@@ -27,9 +29,11 @@ pub fn build(b: *std.Build) void {
     }
 
     const tests = b.addTest(.{
-        .root_source_file = b.path("src/pennant.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/pennant.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     const run_tests = b.addRunArtifact(tests);
