@@ -34,7 +34,7 @@ pub fn ParseResult(comptime Options: type) type {
             /// A flag was given an invalid value
             invalid_value: struct { key: []const u8, value: []const u8 },
 
-            pub fn format(err: Error, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+            pub fn format(err: Error, writer: *std.io.Writer) std.io.Writer.Error!void {
                 switch (err) {
                     .unknown_flag => |flag| try writer.print("Unknown flag: \"{s}\"", .{flag}),
                     .invalid_shorthand => |shorthand| try writer.print("Invalid shorthand: \"{s}\"", .{shorthand}),
@@ -65,8 +65,8 @@ pub fn ParseResult(comptime Options: type) type {
 pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: anytype) !ParseResult(Options) {
     std.debug.assert(arg_iter.next() != null);
 
-    var positionals = std.ArrayList([]const u8).init(allocator);
-    defer positionals.deinit();
+    var positionals: std.ArrayList([]const u8) = .empty;
+    defer positionals.deinit(allocator);
 
     var used_flags = std.StringHashMap(void).init(allocator);
     defer used_flags.deinit();
@@ -149,7 +149,7 @@ pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: any
         } else {
             if (arg[0] == '-' and !raw_parse) {
                 if (arg.len == 1) {
-                    try positionals.append(arg);
+                    try positionals.append(allocator, arg);
                 } else if (arg[1] == '-') {
                     if (arg.len == 2) {
                         raw_parse = true;
@@ -243,7 +243,7 @@ pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: any
                     }
                 }
             } else {
-                try positionals.append(arg);
+                try positionals.append(allocator, arg);
             }
         }
     }
@@ -265,7 +265,7 @@ pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: any
     return .{
         .valid = .{
             .options = options,
-            .positionals = try positionals.toOwnedSlice(),
+            .positionals = try positionals.toOwnedSlice(allocator),
         },
     };
 }

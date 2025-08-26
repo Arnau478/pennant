@@ -53,7 +53,7 @@ pub fn main() !void {
             }
         },
         .err => |err| {
-            std.log.err("{}", .{err});
+            std.log.err("{f}", .{err});
         },
     }
 }
