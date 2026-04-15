@@ -1,13 +1,5 @@
 const std = @import("std");
 
-/// Parse arguments for the running process
-pub fn parseForProcess(comptime Options: type, allocator: std.mem.Allocator) !ParseResult(Options) {
-    var args = try std.process.argsWithAllocator(allocator);
-    defer args.deinit();
-
-    return parse(Options, allocator, &args);
-}
-
 pub fn ParseResult(comptime Options: type) type {
     return union(enum) {
         pub const Valid = struct {
@@ -34,7 +26,7 @@ pub fn ParseResult(comptime Options: type) type {
             /// A flag was given an invalid value
             invalid_value: struct { key: []const u8, value: []const u8 },
 
-            pub fn format(err: Error, writer: *std.io.Writer) std.io.Writer.Error!void {
+            pub fn format(err: Error, writer: *std.Io.Writer) std.Io.Writer.Error!void {
                 switch (err) {
                     .unknown_flag => |flag| try writer.print("Unknown flag: \"{s}\"", .{flag}),
                     .invalid_shorthand => |shorthand| try writer.print("Invalid shorthand: \"{s}\"", .{shorthand}),
@@ -62,7 +54,7 @@ pub fn ParseResult(comptime Options: type) type {
 }
 
 /// Parse arguments
-pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: anytype) !ParseResult(Options) {
+pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: *std.process.Args.Iterator) !ParseResult(Options) {
     std.debug.assert(arg_iter.next() != null);
 
     var positionals: std.ArrayList([]const u8) = .empty;
@@ -346,19 +338,8 @@ pub fn printHelp(comptime Options: type, options: PrintHelpOptions) void {
     }
 }
 
-fn testParse(Options: type, args: []const []const u8, expected: ParseResult(Options)) !void {
-    const Iterator = struct {
-        args: []const []const u8,
-        idx: usize = 0,
-
-        pub fn next(iterator: *@This()) ?[]const u8 {
-            if (iterator.idx >= iterator.args.len) return null;
-            defer iterator.idx += 1;
-            return iterator.args[iterator.idx];
-        }
-    };
-
-    var iter: Iterator = .{ .args = args };
+fn testParse(Options: type, args: []const [*:0]const u8, expected: ParseResult(Options)) !void {
+    var iter: std.process.Args.Iterator = .{ .inner = .{ .remaining = args } };
 
     const res = try parse(Options, std.testing.allocator, &iter);
     defer res.deinit(std.testing.allocator);

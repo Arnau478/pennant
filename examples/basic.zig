@@ -22,18 +22,15 @@ pub const Options = struct {
     };
 };
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
-    const res = try pennant.parseForProcess(Options, allocator);
-    defer res.deinit(allocator);
+pub fn main(init: std.process.Init) !void {
+    const arena = init.arena.allocator();
+    var arg_iter = init.minimal.args.iterate();
+    const res = try pennant.parse(Options, arena, &arg_iter);
 
     switch (res) {
         .valid => |args| {
             if (args.options.help) {
-                pennant.printHelp(Options, .{ .text = 
+                pennant.printHelp(Options, .{ .text =
                     \\An example command
                 });
             } else {
