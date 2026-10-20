@@ -74,9 +74,8 @@ pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: *st
                 @compileError("Cannot define opposite for unknown flag \"" ++ f1 ++ "\"");
             }
 
-            inline for (field_names, 0..) |f2, idx2| {
-                if (idx2 <= idx1) continue;
-
+            // Iterate only over unexamined pairs
+            inline for (field_names[idx1 + 1 ..]) |f2| {
                 if (comptime std.mem.eql(u8, @field(Options.opposites, f1), @field(Options.opposites, f2))) {
                     @compileError("Options " ++ f1 ++ " and " ++ f2 ++ " have the same opposite");
                 }
@@ -104,7 +103,7 @@ pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: *st
             find_flag: {
                 inline for (@typeInfo(Options).@"struct".field_names) |field_name| {
                     if (std.mem.eql(u8, key, field_name)) {
-                        const RawT = @TypeOf(@field(options, field_name));
+                        const RawT = @FieldType(Options, field_name);
                         const T = if (@typeInfo(RawT) == .optional) std.meta.Child(RawT) else RawT;
                         switch (T) {
                             bool => return .{ .err = .{ .unexpected_value = key } },
@@ -166,7 +165,7 @@ pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: *st
                             find_flag: {
                                 inline for (@typeInfo(Options).@"struct".field_names) |field_name| {
                                     if (std.mem.eql(u8, name, field_name)) {
-                                        const RawT = @TypeOf(@field(options, field_name));
+                                        const RawT = @FieldType(Options, field_name);
                                         const T = if (@typeInfo(RawT) == .optional) std.meta.Child(RawT) else RawT;
                                         switch (T) {
                                             bool => {
@@ -185,7 +184,7 @@ pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: *st
                                         if (@hasField(@TypeOf(Options.opposites), field_name)) {
                                             const opposite = @field(Options.opposites, field_name);
                                             if (std.mem.eql(u8, name, opposite)) {
-                                                const RawT = @TypeOf(@field(options, field_name));
+                                                const RawT = @FieldType(Options, field_name);
                                                 const T = if (@typeInfo(RawT) == .optional) std.meta.Child(RawT) else RawT;
                                                 if (T != bool) {
                                                     @compileError("Option " ++ field_name ++ " has an opposite but is not bool");
@@ -220,7 +219,7 @@ pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: *st
                                             @compileError("Shorthand " ++ field_name ++ " assigned to non-existent property " ++ @field(Options.shorthands, field_name));
                                         }
 
-                                        const RawT = @TypeOf(@field(options, @field(Options.shorthands, field_name)));
+                                        const RawT = @FieldType(Options, @field(Options.shorthands, field_name));
                                         const T = if (@typeInfo(RawT) == .optional) std.meta.Child(RawT) else RawT;
                                         if (T != bool) {
                                             @compileError("Property " ++ @field(Options.shorthands, field_name) ++ " with shorthand " ++ field_name ++ " is not bool");
@@ -326,7 +325,7 @@ pub fn printHelp(comptime Options: type, options: PrintHelpOptions) void {
 
         std.debug.print("\n", .{});
 
-        const RawT = @TypeOf(@field(Options{}, base_flag));
+        const RawT = @FieldType(Options, base_flag);
         const T = if (@typeInfo(RawT) == .optional) std.meta.Child(RawT) else RawT;
         if (@typeInfo(T) == .@"enum") {
             inline for (@typeInfo(T).@"enum".field_names) |enum_name| {
