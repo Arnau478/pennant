@@ -20,9 +20,7 @@ pub fn build(b: *std.Build) void {
 
         const tls = b.step(b.fmt("example-{s}", .{example}), b.fmt("Run the \"{s}\" example", .{example}));
         const run = b.addRunArtifact(exe);
-        if (b.args) |args| {
-            run.addArgs(args);
-        }
+        run.addPassthruArgs();
         tls.dependOn(&run.step);
 
         exe.root_module.addImport("pennant", pennant);
