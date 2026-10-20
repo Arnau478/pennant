@@ -67,16 +67,18 @@ pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: *st
 
     // Check that all opposites are unique and correspond to valid base flags
     if (@hasDecl(Options, "opposites")) {
-        inline for (std.meta.fields(@TypeOf(Options.opposites)), 0..) |f1, idx1| {
-            if (!@hasField(Options, f1.name)) {
-                @compileError("Cannot define opposite for unknown flag \"" ++ f1.name ++ "\"");
+        const field_names = @typeInfo(@TypeOf(Options.opposites)).@"struct".field_names;
+
+        inline for (field_names, 0..) |f1, idx1| {
+            if (!@hasField(Options, f1)) {
+                @compileError("Cannot define opposite for unknown flag \"" ++ f1 ++ "\"");
             }
 
-            inline for (std.meta.fields(@TypeOf(Options.opposites)), 0..) |f2, idx2| {
+            inline for (field_names, 0..) |f2, idx2| {
                 if (idx2 <= idx1) continue;
 
-                if (comptime std.mem.eql(u8, @field(Options.opposites, f1.name), @field(Options.opposites, f2.name))) {
-                    @compileError("Options " ++ f1.name ++ " and " ++ f2.name ++ " have the same opposite");
+                if (comptime std.mem.eql(u8, @field(Options.opposites, f1), @field(Options.opposites, f2))) {
+                    @compileError("Options " ++ f1 ++ " and " ++ f2 ++ " have the same opposite");
                 }
             }
         }
@@ -100,21 +102,21 @@ pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: *st
             if (try used_flags.fetchPut(key, {})) |_| return .{ .err = .{ .duplicate_flag = key } };
 
             find_flag: {
-                inline for (std.meta.fields(Options)) |field| {
-                    if (std.mem.eql(u8, key, field.name)) {
-                        const RawT = @TypeOf(@field(options, field.name));
+                inline for (@typeInfo(Options).@"struct".field_names) |field_name| {
+                    if (std.mem.eql(u8, key, field_name)) {
+                        const RawT = @TypeOf(@field(options, field_name));
                         const T = if (@typeInfo(RawT) == .optional) std.meta.Child(RawT) else RawT;
                         switch (T) {
                             bool => return .{ .err = .{ .unexpected_value = key } },
                             []const u8 => {
-                                @field(options, field.name) = arg;
+                                @field(options, field_name) = arg;
                             },
                             else => switch (@typeInfo(T)) {
                                 .@"enum" => {
                                     find_value: {
-                                        inline for (std.meta.fields(T)) |enum_field| {
-                                            if (std.mem.eql(u8, arg, enum_field.name)) {
-                                                @field(options, field.name) = @field(T, enum_field.name);
+                                        inline for (@typeInfo(T).@"enum".field_names) |enum_name| {
+                                            if (std.mem.eql(u8, arg, enum_name)) {
+                                                @field(options, field_name) = @field(T, enum_name);
 
                                                 break :find_value;
                                             }
@@ -124,7 +126,7 @@ pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: *st
                                     }
                                 },
                                 .int => {
-                                    @field(options, field.name) = std.fmt.parseInt(T, arg, 10) catch {
+                                    @field(options, field_name) = std.fmt.parseInt(T, arg, 10) catch {
                                         return .{ .err = .{ .invalid_value = .{ .key = key, .value = arg } } };
                                     };
                                 },
@@ -162,14 +164,14 @@ pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: *st
                             last_arg_value = v;
                         } else {
                             find_flag: {
-                                inline for (std.meta.fields(Options)) |field| {
-                                    if (std.mem.eql(u8, name, field.name)) {
-                                        const RawT = @TypeOf(@field(options, field.name));
+                                inline for (@typeInfo(Options).@"struct".field_names) |field_name| {
+                                    if (std.mem.eql(u8, name, field_name)) {
+                                        const RawT = @TypeOf(@field(options, field_name));
                                         const T = if (@typeInfo(RawT) == .optional) std.meta.Child(RawT) else RawT;
                                         switch (T) {
                                             bool => {
-                                                @field(options, field.name) = true;
-                                                if (try used_flags.fetchPut(field.name, {})) |_| return .{ .err = .{ .duplicate_flag = field.name } };
+                                                @field(options, field_name) = true;
+                                                if (try used_flags.fetchPut(field_name, {})) |_| return .{ .err = .{ .duplicate_flag = field_name } };
                                             },
                                             else => {
                                                 last_arg_key = name;
@@ -180,16 +182,16 @@ pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: *st
                                     }
 
                                     if (@hasDecl(Options, "opposites")) {
-                                        if (@hasField(@TypeOf(Options.opposites), field.name)) {
-                                            const opposite = @field(Options.opposites, field.name);
+                                        if (@hasField(@TypeOf(Options.opposites), field_name)) {
+                                            const opposite = @field(Options.opposites, field_name);
                                             if (std.mem.eql(u8, name, opposite)) {
-                                                const RawT = @TypeOf(@field(options, field.name));
+                                                const RawT = @TypeOf(@field(options, field_name));
                                                 const T = if (@typeInfo(RawT) == .optional) std.meta.Child(RawT) else RawT;
                                                 if (T != bool) {
-                                                    @compileError("Option " ++ field.name ++ " has an opposite but is not bool");
+                                                    @compileError("Option " ++ field_name ++ " has an opposite but is not bool");
                                                 }
 
-                                                @field(options, field.name) = false;
+                                                @field(options, field_name) = false;
                                                 if (try used_flags.fetchPut(opposite, {})) |_| return .{ .err = .{ .duplicate_flag = opposite } };
                                                 break :find_flag;
                                             }
@@ -208,24 +210,24 @@ pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: *st
                         const shorthand = arg[1];
                         find_shorthand: {
                             if (@hasDecl(Options, "shorthands")) {
-                                inline for (std.meta.fields(@TypeOf(Options.shorthands))) |field| {
-                                    if (field.name.len != 1) {
-                                        @compileError("Shorthand " ++ field.name ++ " is not a single character long");
+                                inline for (@typeInfo(@TypeOf(Options.shorthands)).@"struct".field_names) |field_name| {
+                                    if (field_name.len != 1) {
+                                        @compileError("Shorthand " ++ field_name ++ " is not a single character long");
                                     }
 
-                                    if (shorthand == field.name[0]) {
-                                        if (!@hasField(Options, @field(Options.shorthands, field.name))) {
-                                            @compileError("Shorthand " ++ field.name ++ " assigned to non-existent property " ++ @field(Options.shorthands, field.name));
+                                    if (shorthand == field_name[0]) {
+                                        if (!@hasField(Options, @field(Options.shorthands, field_name))) {
+                                            @compileError("Shorthand " ++ field_name ++ " assigned to non-existent property " ++ @field(Options.shorthands, field_name));
                                         }
 
-                                        const RawT = @TypeOf(@field(options, @field(Options.shorthands, field.name)));
+                                        const RawT = @TypeOf(@field(options, @field(Options.shorthands, field_name)));
                                         const T = if (@typeInfo(RawT) == .optional) std.meta.Child(RawT) else RawT;
                                         if (T != bool) {
-                                            @compileError("Property " ++ @field(Options.shorthands, field.name) ++ " with shorthand " ++ field.name ++ " is not bool");
+                                            @compileError("Property " ++ @field(Options.shorthands, field_name) ++ " with shorthand " ++ field_name ++ " is not bool");
                                         }
 
-                                        @field(options, @field(Options.shorthands, field.name)) = true;
-                                        if (try used_flags.fetchPut(@field(Options.shorthands, field.name), {})) |_| return .{ .err = .{ .duplicate_flag = @field(Options.shorthands, field.name) } };
+                                        @field(options, @field(Options.shorthands, field_name)) = true;
+                                        if (try used_flags.fetchPut(@field(Options.shorthands, field_name), {})) |_| return .{ .err = .{ .duplicate_flag = @field(Options.shorthands, field_name) } };
                                         break :find_shorthand;
                                     }
                                 }
@@ -245,10 +247,10 @@ pub fn parse(comptime Options: type, allocator: std.mem.Allocator, arg_iter: *st
     }
 
     if (@hasDecl(Options, "opposites")) {
-        inline for (std.meta.fields(@TypeOf(Options.opposites))) |field| {
-            if (used_flags.get(field.name)) |_| {
-                if (used_flags.get(@field(Options.opposites, field.name))) |_| {
-                    return .{ .err = .{ .contradictory_flags = field.name } };
+        inline for (@typeInfo(@TypeOf(Options.opposites)).@"struct".field_names) |field_name| {
+            if (used_flags.get(field_name)) |_| {
+                if (used_flags.get(@field(Options.opposites, field_name))) |_| {
+                    return .{ .err = .{ .contradictory_flags = field_name } };
                 }
             }
         }
@@ -273,31 +275,31 @@ pub fn printHelp(comptime Options: type, options: PrintHelpOptions) void {
     }
 
     if (@hasDecl(Options, "descriptions")) {
-        inline for (std.meta.fields(@TypeOf(Options.descriptions))) |field| {
-            if (!@hasField(Options, field.name)) {
-                @compileError("Cannot define description for unknown flag \"" ++ field.name ++ "\"");
+        inline for (@typeInfo(@TypeOf(Options.descriptions)).@"struct".field_names) |field_name| {
+            if (!@hasField(Options, field_name)) {
+                @compileError("Cannot define description for unknown flag \"" ++ field_name ++ "\"");
             }
         }
     }
 
-    comptime var flags: [std.meta.fields(Options).len][]const u8 = undefined;
+    comptime var flags: [@typeInfo(Options).@"struct".field_names.len][]const u8 = undefined;
 
-    inline for (std.meta.fields(Options), 0..) |flag, i| {
+    inline for (@typeInfo(Options).@"struct".field_names, 0..) |flag, i| {
         comptime var f: []const u8 = "";
 
         if (@hasDecl(Options, "shorthands")) {
-            inline for (std.meta.fields(@TypeOf(Options.shorthands))) |field| {
-                if (comptime std.mem.eql(u8, @field(Options.shorthands, field.name), flag.name)) {
-                    f = f ++ "-" ++ field.name ++ ", ";
+            inline for (@typeInfo(@TypeOf(Options.shorthands)).@"struct".field_names) |field_name| {
+                if (comptime std.mem.eql(u8, @field(Options.shorthands, field_name), flag)) {
+                    f = f ++ "-" ++ field_name ++ ", ";
                 }
             }
         }
 
-        f = f ++ "--" ++ flag.name;
+        f = f ++ "--" ++ flag;
 
         if (@hasDecl(Options, "opposites")) {
-            if (@hasField(@TypeOf(Options.opposites), flag.name)) {
-                f = f ++ ", --" ++ @field(Options.opposites, flag.name);
+            if (@hasField(@TypeOf(Options.opposites), flag)) {
+                f = f ++ ", --" ++ @field(Options.opposites, flag);
             }
         }
 
@@ -311,7 +313,7 @@ pub fn printHelp(comptime Options: type, options: PrintHelpOptions) void {
 
     std.debug.print("Flags:\n", .{});
     inline for (flags, 0..) |flag, i| {
-        const base_flag = std.meta.fields(Options)[i].name;
+        const base_flag = @typeInfo(Options).@"struct".field_names[i];
 
         std.debug.print("  " ++ flag, .{});
         for (0..max_flag_len - flag.len + 2) |_| {
@@ -327,12 +329,12 @@ pub fn printHelp(comptime Options: type, options: PrintHelpOptions) void {
         const RawT = @TypeOf(@field(Options{}, base_flag));
         const T = if (@typeInfo(RawT) == .optional) std.meta.Child(RawT) else RawT;
         if (@typeInfo(T) == .@"enum") {
-            inline for (std.meta.fields(T)) |field| {
+            inline for (@typeInfo(T).@"enum".field_names) |enum_name| {
                 for (0..max_flag_len + 6) |_| {
                     std.debug.print(" ", .{});
                 }
 
-                std.debug.print("- " ++ field.name ++ "\n", .{});
+                std.debug.print("- " ++ enum_name ++ "\n", .{});
             }
         }
     }
